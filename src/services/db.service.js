@@ -1,0 +1,165 @@
+import { db } from "../config/firebase";
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  addDoc, 
+  updateDoc,
+  setDoc
+} from "firebase/firestore";
+
+/**
+ * Database Service (Firestore Implementation)
+ * Maneja la lógica multiempresa y la reserva de turnos.
+ */
+
+export const dbService = {
+  // --- Empresas y Slugs ---
+  
+  /**
+   * Obtiene un negocio por su slug público (taketurn.com/:slug)
+   * 1. Consulta la colección 'slug_registry' para obtener el businessId.
+   * 2. Recupera el perfil del negocio de la colección 'businesses'.
+   */
+  getBusinessBySlug: async (slug) => {
+    try {
+      const normalizedSlug = slug.toLowerCase();
+      const q = query(collection(db, "businesses"), where("slug", "==", normalizedSlug));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        console.warn('Negocio no encontrado con slug:', normalizedSlug);
+        return null;
+      }
+
+      const businessDoc = querySnapshot.docs[0];
+      return { id: businessDoc.id, ...businessDoc.data() };
+    } catch (error) {
+      console.error("Error en getBusinessBySlug:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene un negocio por su ID directamente
+   */
+  getBusinessById: async (businessId) => {
+    try {
+      const businessRef = doc(db, "businesses", businessId);
+      const businessSnap = await getDoc(businessRef);
+      return businessSnap.exists() ? { id: businessSnap.id, ...businessSnap.data() } : null;
+    } catch (error) {
+      console.error("Error en getBusinessById:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Registra un nuevo slug único vinculado a una empresa.
+   */
+  registerSlug: async (slug, businessId) => {
+    try {
+      await setDoc(doc(db, "slug_registry", slug), { businessId });
+    } catch (error) {
+      console.error("Error registrando slug:", error);
+      throw new Error("El slug ya está en uso o no tienes permisos.");
+    }
+  },
+
+  /**
+   * Actualiza el perfil de la empresa (incluyendo horarios, servicios e intervalo)
+   */
+  updateBusinessProfile: async (businessId, data) => {
+    try {
+      const businessRef = doc(db, "businesses", businessId);
+      await setDoc(businessRef, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      
+      // Si el slug cambió en los datos, opcionalmente podrías actualizar el registry aquí
+      // pero por ahora lo manejamos en el componente para mayor control.
+    } catch (error) {
+      console.error("Error actualizando perfil de empresa:", error);
+      throw error;
+    }
+  },
+
+  // --- Turnos (Appointments) ---
+
+  /**
+   * Obtiene los turnos para una empresa en una fecha específica (YYYY-MM-DD)
+   */
+  getAppointmentsByDate: async (businessId, date) => {
+    try {
+      const appointmentsRef = collection(db, "businesses", businessId, "appointments");
+      const q = query(
+        appointmentsRef, 
+        where("date", "==", date),
+        where("status", "!=", "cancelled")
+      );
+      
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Error obteniendo turnos:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Crea un nuevo turno en estado pendiente dentro de la subcolección de la empresa
+   */
+  createAppointment: async (appointmentData) => {
+    try {
+      const { businessId } = appointmentData;
+      if (!businessId) throw new Error("Falta businessId para crear el turno.");
+
+      const appointmentsRef = collection(db, "businesses", businessId, "appointments");
+      const docRef = await addDoc(appointmentsRef, {
+        ...appointmentData,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      });
+      return { id: docRef.id, ...appointmentData };
+    } catch (error) {
+       console.error("Error creando turno:", error);
+       throw error;
+    }
+  },
+
+  /**
+   * Obtiene todos los turnos para la administración (con filtros opcionales)
+   */
+  getBusinessAppointments: async (businessId) => {
+    try {
+      if (!businessId) return [];
+      const appointmentsRef = collection(db, "businesses", businessId, "appointments");
+      const q = query(appointmentsRef);
+      
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Error obteniendo todos los turnos:", error);
+      throw error;
+    }
+  },
+
+  // --- Clientes ---
+  
+  getBusinessCustomers: async (businessId) => {
+    try {
+      if (!businessId) return [];
+      const customersRef = collection(db, "businesses", businessId, "customers");
+      const q = query(customersRef);
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Error obteniendo clientes:", error);
+      throw error;
+    }
+  }
+};
