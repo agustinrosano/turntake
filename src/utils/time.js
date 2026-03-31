@@ -64,3 +64,18 @@ export const isSlotOccupied = (proposedTime, proposedDuration, existingAppointme
     return isOverlapping(proposedStart, proposedDuration, existingStart, existingDuration, buffer);
   });
 };
+
+/**
+ * Converts a Date object to a local "YYYY-MM-DD" string.
+ * IMPORTANT: Do NOT use date.toISOString().split('T')[0] for this purpose,
+ * because toISOString() converts to UTC, which can shift the date by ±1 day
+ * depending on the user's timezone (e.g., Argentina UTC-3 after 21:00).
+ * @param {Date} date
+ * @returns {string} - Example: "2026-03-31"
+ */
+export const toLocalDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};

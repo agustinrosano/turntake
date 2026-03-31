@@ -16,6 +16,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
+import { toLocalDateString } from '../../utils/time';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const DashboardPage = () => {
   }, [user?.businessId]);
 
   // Calculamos estadísticas reales
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateString(new Date());
   const appointmentsToday = appointments.filter(a => a.date === today && a.status !== 'cancelled');
   const uniqueCustomers = new Set(appointments.map(a => a.customerPhone)).size;
 

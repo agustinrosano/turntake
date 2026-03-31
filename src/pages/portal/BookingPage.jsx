@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { dbService } from '../../services/db.service';
-import { isSlotOccupied } from '../../utils/time';
+import { isSlotOccupied, toLocalDateString } from '../../utils/time';
 import { setActiveBusiness, setLoading, setError } from '../../features/business/businessSlice';
 
 const BookingPage = () => {
@@ -194,7 +194,7 @@ const BookingPage = () => {
     for (let i = 0; i < 14; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toLocalDateString(d);
       days.push({
         name: names[d.getDay()],
         label: d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),

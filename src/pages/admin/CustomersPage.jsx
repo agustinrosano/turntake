@@ -4,7 +4,7 @@ import {
   Users, Search, Phone, Mail, Calendar, TrendingUp, X, Clock, Check, Loader2, CalendarPlus, ArrowUpRight, ChevronRight
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
-import { isSlotOccupied } from '../../utils/time';
+import { isSlotOccupied, toLocalDateString } from '../../utils/time';
 import { cn } from '../../utils/cn';
 
 const CustomersPage = () => {
@@ -393,7 +393,7 @@ const CustomersPage = () => {
                                     const day = i - firstDayOfMonth + 1;
                                     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
                                     if (date.getMonth() !== currentMonth.getMonth()) return <div key={i} />;
-                                    const dateString = date.toISOString().split('T')[0];
+                                    const dateString = toLocalDateString(date);
                                     const isSelected = selectedDates.includes(dateString);
                                     const isPast = date < new Date(new Date().setHours(0,0,0,0));
                                     return (
