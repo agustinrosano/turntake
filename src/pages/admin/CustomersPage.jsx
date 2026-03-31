@@ -4,6 +4,7 @@ import {
   Users, Search, Phone, Mail, Calendar, TrendingUp, X, Clock, Check, Loader2, CalendarPlus, ArrowUpRight, ChevronRight
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
+import { isSlotOccupied } from '../../utils/time';
 import { cn } from '../../utils/cn';
 
 const CustomersPage = () => {
@@ -118,18 +119,41 @@ const CustomersPage = () => {
     }
   };
 
-  // Generate Slots logic
+  // Generate Slots logic (Updated to check overlaps)
   useEffect(() => {
-    if (selectedDates.length > 0 && selectedService && businessData?.schedule) {
-       generateSlots(selectedDates[0]);
-    }
-  }, [selectedDates, selectedService, businessData]);
+    const updateSlots = async () => {
+      if (selectedDates.length > 0 && selectedService && businessData?.schedule) {
+        // Para simplificar, generamos slots basados en el PRIMER día seleccionado
+        // pero verificamos contra las citas de ese día específico.
+        try {
+          const appts = await dbService.getAppointmentsByDate(user.businessId, selectedDates[0]);
+          generateSlots(selectedDates[0], appts);
+        } catch (error) {
+          console.error("Error fetching appts for slots:", error);
+        }
+      }
+    };
+    updateSlots();
+  }, [selectedDates, selectedService, businessData, user.businessId]);
 
-  const generateSlots = (dateString) => {
+  const generateSlots = (dateString, appts = []) => {
     const date = new Date(dateString + 'T12:00:00');
     const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
     const dayKey = dayNames[date.getDay()];
-    const dayConfig = businessData.schedule[dayKey];
+    
+    const defaultSchedule = {
+      mon: { active: true, start: '09:00', end: '18:00' },
+      tue: { active: true, start: '09:00', end: '18:00' },
+      wed: { active: true, start: '09:00', end: '18:00' },
+      thu: { active: true, start: '09:00', end: '18:00' },
+      fri: { active: true, start: '09:00', end: '18:00' },
+      sat: { active: false, start: '09:00', end: '13:00' },
+      sun: { active: false, start: '09:00', end: '12:00' }
+    };
+
+    const schedule = businessData?.schedule || defaultSchedule;
+    const dayConfig = schedule[dayKey];
+
     if (!dayConfig || !dayConfig.active) {
       setAvailableSlots([]);
       return;
@@ -138,9 +162,13 @@ const CustomersPage = () => {
     let current = dayConfig.start;
     const duration = selectedService.duration || 30;
     while (current < dayConfig.end) {
-      slots.push(current);
+      const isOccupied = isSlotOccupied(current, duration, appts, 0);
+      if (!isOccupied) {
+        slots.push(current);
+      }
       const [h, m] = current.split(':').map(Number);
-      const mins = h * 60 + m + duration;
+      const interval = businessData?.interval || 30; // Usar intervalo de empresa o 30
+      const mins = h * 60 + m + interval; 
       current = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
       if (current >= dayConfig.end) break;
     }
@@ -150,9 +178,19 @@ const CustomersPage = () => {
   const handleBulkCreateAppointments = async () => {
     if (!selectedService || selectedDates.length === 0 || !selectedTime) return;
     setIsCreating(true);
+    let successCount = 0;
+    let skippedDates = [];
+
     try {
       const newAppts = [];
       for (const date of selectedDates) {
+        // Verificar ocupación real justo antes de crear (para cada día del lote)
+        const dayAppts = await dbService.getAppointmentsByDate(user.businessId, date);
+        if (isSlotOccupied(selectedTime, selectedService.duration, dayAppts, 0)) {
+          skippedDates.push(date);
+          continue;
+        }
+
         const appt = await dbService.createAppointment({
           businessId: user.businessId, businessName: businessData.name,
           serviceId: selectedService.id, serviceName: selectedService.name,
@@ -161,12 +199,19 @@ const CustomersPage = () => {
           date, time: selectedTime, status: 'confirmed'
         });
         newAppts.push(appt);
+        successCount++;
       }
+      
       setAppointments(prev => [...prev, ...newAppts]);
       setShowModal(false);
-      alert(`¡${selectedDates.length} turnos agendados!`);
+      
+      if (skippedDates.length > 0) {
+        alert(`¡Completado! Se agendaron ${successCount} turnos. ${skippedDates.length} fecha(s) fueron saltadas por estar ya ocupadas: ${skippedDates.join(', ')}`);
+      } else {
+        alert(`¡${successCount} turnos agendados con éxito!`);
+      }
     } catch (err) {
-      alert("Error al agendar.");
+      alert("Error al agendar algunos turnos.");
     } finally {
       setIsCreating(false);
     }

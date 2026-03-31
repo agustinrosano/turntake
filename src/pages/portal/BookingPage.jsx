@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { dbService } from '../../services/db.service';
+import { isSlotOccupied } from '../../utils/time';
 import { setActiveBusiness, setLoading, setError } from '../../features/business/businessSlice';
 
 const BookingPage = () => {
@@ -30,6 +31,7 @@ const BookingPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
+  const [existingAppointments, setExistingAppointments] = useState([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -58,18 +60,39 @@ const BookingPage = () => {
     fetchBusiness();
   }, [businessSlug, dispatch]);
 
-  // 2. Generate Available Slots when Date or Service Changes
+  // 2. Fetch Existing Appointments and Generate Slots when Date or Service Changes
   useEffect(() => {
-    if (selectedDate && selectedService && activeBusiness?.schedule) {
-      generateSlots(selectedDate);
-    }
+    const updateSlots = async () => {
+      if (selectedDate && selectedService && activeBusiness) {
+        try {
+          const appts = await dbService.getAppointmentsByDate(activeBusiness.id, selectedDate);
+          setExistingAppointments(appts);
+          generateSlots(selectedDate, appts);
+        } catch (err) {
+          console.error("Error fetching appointments:", err);
+        }
+      }
+    };
+    updateSlots();
   }, [selectedDate, selectedService, activeBusiness]);
 
-  const generateSlots = (dateString) => {
+  const generateSlots = (dateString, appts = []) => {
     const date = new Date(dateString + 'T12:00:00');
     const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
     const dayKey = dayNames[date.getDay()];
-    const dayConfig = activeBusiness.schedule[dayKey];
+
+    const defaultSchedule = {
+      mon: { active: true, start: '09:00', end: '18:00' },
+      tue: { active: true, start: '09:00', end: '18:00' },
+      wed: { active: true, start: '09:00', end: '18:00' },
+      thu: { active: true, start: '09:00', end: '18:00' },
+      fri: { active: true, start: '09:00', end: '18:00' },
+      sat: { active: false, start: '09:00', end: '13:00' },
+      sun: { active: false, start: '09:00', end: '12:00' }
+    };
+
+    const schedule = activeBusiness?.schedule || defaultSchedule;
+    const dayConfig = schedule[dayKey];
 
     if (!dayConfig || !dayConfig.active) {
       setAvailableSlots([]);
@@ -82,17 +105,22 @@ const BookingPage = () => {
     const duration = selectedService.duration || 30;
 
     while (current < end) {
-      slots.push(current);
-      // Incrementar tiempo basado en la duración del servicio
+      // Verificar si el slot está ocupado (sin buffer o margen, ocupación exacta)
+      const isOccupied = isSlotOccupied(current, duration, appts, 0);
+      
+      if (!isOccupied) {
+        slots.push(current);
+      }
+      
       const [hours, minutes] = current.split(':').map(Number);
-      const totalMinutes = hours * 60 + minutes + duration;
+      const interval = activeBusiness?.interval || 30; // Usar el intervalo de la empresa
+      const totalMinutes = hours * 60 + minutes + interval;
       
       const nextHours = Math.floor(totalMinutes / 60);
       const nextMinutes = totalMinutes % 60;
       
       current = `${String(nextHours).padStart(2, '0')}:${String(nextMinutes).padStart(2, '0')}`;
       
-      // Seguridad para no pasarse del fin
       if (current >= end && slots.length > 0) break;
     }
 
@@ -110,6 +138,17 @@ const BookingPage = () => {
     }
 
     try {
+      // Final overlap check before submission
+      const latestAppts = await dbService.getAppointmentsByDate(activeBusiness.id, selectedDate);
+      if (isSlotOccupied(selectedTime, selectedService.duration, latestAppts, 0)) {
+        alert("Lo sentimos, este horario acaba de ser reservado. Por favor, selecciona otro.");
+        // Refrescar slots
+        setExistingAppointments(latestAppts);
+        generateSlots(selectedDate, latestAppts);
+        setStep(1); // Back to time selection
+        return;
+      }
+
       await dbService.createAppointment({
         businessId: activeBusiness.id,
         businessName: activeBusiness.name,

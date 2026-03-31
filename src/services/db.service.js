@@ -96,14 +96,17 @@ export const dbService = {
   getAppointmentsByDate: async (businessId, date) => {
     try {
       const appointmentsRef = collection(db, "businesses", businessId, "appointments");
+      // Remove status != cancelled query to avoid Firebase Composite Index error.
+      // We will filter it in memory instead since items per day are low.
       const q = query(
         appointmentsRef, 
-        where("date", "==", date),
-        where("status", "!=", "cancelled")
+        where("date", "==", date)
       );
       
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const allAppts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Filtrar client-side
+      return allAppts.filter(appt => appt.status !== "cancelled");
     } catch (error) {
       console.error("Error obteniendo turnos:", error);
       throw error;
