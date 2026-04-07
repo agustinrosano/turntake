@@ -159,5 +159,40 @@ export const dbService = {
       console.error("Error obteniendo clientes:", error);
       throw error;
     }
+  },
+
+  /**
+   * Crea un nuevo cliente manualmente
+   */
+  createCustomer: async (businessId, customerData) => {
+    try {
+      if (!businessId) throw new Error("Falta businessId para crear el cliente");
+      const customersRef = collection(db, "businesses", businessId, "customers");
+      const docRef = await addDoc(customersRef, {
+        ...customerData,
+        createdAt: new Date().toISOString()
+      });
+      return { id: docRef.id, ...customerData };
+    } catch (error) {
+      console.error("Error creando cliente:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Actualiza el perfil de un cliente (ej: notas, datos de contacto)
+   */
+  updateCustomer: async (businessId, customerId, data) => {
+    try {
+      if (!businessId || !customerId) throw new Error("Faltan identificadores para actualizar el cliente");
+      const customerRef = doc(db, "businesses", businessId, "customers", customerId);
+      await updateDoc(customerRef, {
+        ...data,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error actualizando cliente:", error);
+      throw error;
+    }
   }
 };
