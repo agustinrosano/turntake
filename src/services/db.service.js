@@ -96,14 +96,12 @@ export const dbService = {
   getAppointmentsByDate: async (businessId, date) => {
     try {
       const appointmentsRef = collection(db, "businesses", businessId, "appointments");
-      const q = query(
-        appointmentsRef, 
-        where("date", "==", date),
-        where("status", "!=", "cancelled")
-      );
+      const q = query(appointmentsRef, where("date", "==", date));
       
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      return querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((appt) => appt.status !== 'cancelled');
     } catch (error) {
       console.error("Error obteniendo turnos:", error);
       throw error;

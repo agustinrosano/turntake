@@ -20,8 +20,10 @@ import { dbService } from '../../services/db.service';
 const DashboardPage = () => {
   const navigate = useNavigate();
   const user = useSelector(state => state.auth.user);
+  const activeBusiness = useSelector(state => state.business.activeBusiness);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [copyStatus, setCopyStatus] = useState('idle');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,10 +46,51 @@ const DashboardPage = () => {
   const uniqueCustomers = new Set(appointments.map(a => a.customerPhone)).size;
 
   const stats = [
-    { label: 'Turnos Hoy', value: appointmentsToday.length.toString(), icon: <Calendar size={24} />, color: 'bg-indigo-500', trend: 'Agenda' },
-    { label: 'Total Clientes', value: uniqueCustomers.toString(), icon: <Users size={24} />, color: 'bg-emerald-500', trend: 'Fieles' },
-    { label: 'Ingresos Est.', value: `$${appointmentsToday.length * 1500}`, icon: <TrendingUp size={24} />, color: 'bg-amber-500', trend: 'Proyectado' },
+    {
+      label: 'Turnos Hoy',
+      value: appointmentsToday.length.toString(),
+      icon: <Calendar size={24} />,
+      color: 'bg-indigo-500',
+      trend: 'Agenda',
+      to: '/admin/appointments',
+      cta: 'Ir a turnos'
+    },
+    {
+      label: 'Total Clientes',
+      value: uniqueCustomers.toString(),
+      icon: <Users size={24} />,
+      color: 'bg-emerald-500',
+      trend: 'Fieles',
+      to: '/admin/customers',
+      cta: 'Ir a clientes'
+    },
+    {
+      label: 'Ingresos Est.',
+      value: `$${appointmentsToday.length * 1500}`,
+      icon: <TrendingUp size={24} />,
+      color: 'bg-amber-500',
+      trend: 'Proyectado'
+    },
   ];
+
+  const slug = activeBusiness?.slug || '';
+  const portalUrl = slug ? `https://taketurn-246cd.web.app/${slug}` : 'https://taketurn-246cd.web.app/';
+
+  const handleCopyPortalUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(portalUrl);
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch (error) {
+      console.error('No se pudo copiar la URL:', error);
+      setCopyStatus('error');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    }
+  };
+
+  const handlePreviewPortal = () => {
+    window.open(portalUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const recentAppointments = appointments
     .sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`))
@@ -87,7 +130,11 @@ const DashboardPage = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-primary-100 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-500">
+          <button
+            key={i}
+            onClick={() => stat.to && navigate(stat.to)}
+            className={`bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-primary-100 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-500 text-left ${stat.to ? 'cursor-pointer' : 'cursor-default'}`}
+          >
              <div className="space-y-2">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{stat.label}</p>
                 <p className="text-4xl font-black text-slate-900 leading-none">{stat.value}</p>
@@ -97,11 +144,17 @@ const DashboardPage = () => {
                      {[1,2,3].map(x => <div key={x} className="w-4 h-4 rounded-full border-2 border-white bg-slate-200"></div>)}
                   </div>
                 </div>
+                {stat.to && (
+                  <div className="text-[11px] font-black uppercase tracking-wider text-primary-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    {stat.cta}
+                    <ChevronRight size={12} />
+                  </div>
+                )}
              </div>
              <div className={`w-16 h-16 ${stat.color} text-white rounded-[1.5rem] flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
                 {stat.icon}
              </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -192,10 +245,16 @@ const DashboardPage = () => {
                  </div>
                  
                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button className="bg-white text-indigo-600 font-black py-4 px-8 rounded-2xl text-xs uppercase tracking-widest hover:bg-white/90 transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-xl">
-                       Copiar URL
+                    <button
+                      onClick={handleCopyPortalUrl}
+                      className="bg-white text-indigo-600 font-black py-4 px-8 rounded-2xl text-xs uppercase tracking-widest hover:bg-white/90 transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02] shadow-xl"
+                    >
+                       {copyStatus === 'copied' ? 'URL copiada' : copyStatus === 'error' ? 'No se pudo copiar' : 'Copiar URL'}
                     </button>
-                    <button className="bg-white/10 backdrop-blur-md border border-white/20 text-white font-black py-4 px-8 rounded-2xl text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center justify-center gap-2">
+                    <button
+                      onClick={handlePreviewPortal}
+                      className="bg-white/10 backdrop-blur-md border border-white/20 text-white font-black py-4 px-8 rounded-2xl text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center justify-center gap-2"
+                    >
                        Previsualizar
                     </button>
                  </div>

@@ -121,7 +121,9 @@ const AppointmentsPage = () => {
       
       // 3. Search filter
       const matchesSearch = app.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           app.service?.toLowerCase().includes(searchTerm.toLowerCase());
+                           app.serviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           app.service?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           app.teacherName?.toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesFilter && matchesSearch;
     });
@@ -366,6 +368,7 @@ const AppointmentsPage = () => {
               <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-widest">
                 <th className="px-8 py-5">Cliente</th>
                 <th className="px-8 py-5 text-center">Servicio</th>
+                <th className="px-8 py-5 text-center">Profesor</th>
                 <th className="px-8 py-5">Fecha y Hora</th>
                 <th className="px-8 py-5 text-center">Estado</th>
                 <th className="px-8 py-5 text-right">Acciones</th>
@@ -375,12 +378,12 @@ const AppointmentsPage = () => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan="5" className="px-8 py-5 h-20 bg-slate-50/20"></td>
+                    <td colSpan="6" className="px-8 py-5 h-20 bg-slate-50/20"></td>
                   </tr>
                 ))
               ) : filteredAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-32 text-center">
+                  <td colSpan="6" className="px-8 py-32 text-center">
                     <div className="flex flex-col items-center gap-4 grayscale opacity-40">
                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-2">
                           <Calendar size={40} className="text-slate-300" />
@@ -417,6 +420,11 @@ const AppointmentsPage = () => {
                     <td className="px-8 py-5 text-center">
                       <span className="px-3 py-1.5 bg-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-tight">
                         {appt.serviceName || appt.service || 'Servicio'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      <span className="px-3 py-1.5 bg-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-tight">
+                        {appt.teacherName || 'General'}
                       </span>
                     </td>
                     <td className="px-8 py-5">
