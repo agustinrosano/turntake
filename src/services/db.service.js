@@ -1,4 +1,4 @@
-import { db } from "../config/firebase";
+import { db, storage } from "../config/firebase";
 import { 
   collection, 
   doc, 
@@ -10,6 +10,7 @@ import {
   updateDoc,
   setDoc
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 /**
  * Database Service (Firestore Implementation)
@@ -142,6 +143,66 @@ export const dbService = {
       return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       console.error("Error obteniendo todos los turnos:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Actualiza el estado de un turno de una empresa
+   */
+  updateAppointmentStatus: async (businessId, appointmentId, status) => {
+    try {
+      if (!businessId || !appointmentId) {
+        throw new Error("Faltan identificadores para actualizar el turno");
+      }
+
+      const appointmentRef = doc(db, "businesses", businessId, "appointments", appointmentId);
+      await updateDoc(appointmentRef, {
+        status,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error actualizando estado del turno:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Guarda un lead de contacto desde formularios publicos
+   */
+  createMailingLead: async (leadData) => {
+    try {
+      const mailingRef = collection(db, "mailing");
+      const docRef = await addDoc(mailingRef, {
+        ...leadData,
+        createdAt: new Date().toISOString()
+      });
+      return { id: docRef.id, ...leadData };
+    } catch (error) {
+      console.error("Error guardando lead de mailing:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Sube el avatar de una empresa a Firebase Storage y devuelve la URL pública.
+   */
+  uploadBusinessAvatar: async (businessId, file) => {
+    try {
+      if (!businessId || !file) {
+        throw new Error("Faltan datos para subir el avatar.");
+      }
+
+      const ext = file.name?.split('.').pop()?.toLowerCase() || 'jpg';
+      const safeExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext : 'jpg';
+      const fileName = `business-avatar-${Date.now()}.${safeExt}`;
+      const avatarRef = ref(storage, `businesses/${businessId}/avatar/${fileName}`);
+
+      await uploadBytes(avatarRef, file, { contentType: file.type || 'image/jpeg' });
+      const downloadURL = await getDownloadURL(avatarRef);
+      return downloadURL;
+    } catch (error) {
+      console.error("Error subiendo avatar del negocio:", error);
       throw error;
     }
   },

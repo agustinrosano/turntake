@@ -9,7 +9,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
-  Users
+  Users,
+  ChevronDown,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
 import { setActiveBusiness } from '../../features/business/businessSlice';
@@ -99,6 +102,7 @@ const BusinessSettingsPage = () => {
   const dispatch = useDispatch();
 
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
 
@@ -108,25 +112,34 @@ const BusinessSettingsPage = () => {
     slug: '',
     address: '',
     phone: '',
+    avatarUrl: '',
     interval: 30,
     schedule: createDefaultSchedule(),
     services: [],
     teachers: []
   });
+  const [openServiceId, setOpenServiceId] = useState(null);
+  const [openTeacherId, setOpenTeacherId] = useState(null);
 
   useEffect(() => {
     if (activeBusiness) {
+      const incomingServices = activeBusiness.services || [];
+      const incomingTeachers = activeBusiness.teachers || [];
+
       setFormData((prev) => ({
         ...prev,
         ...activeBusiness,
         schedule: activeBusiness.schedule || prev.schedule,
-        services: activeBusiness.services || [],
-        teachers: (activeBusiness.teachers || []).map((teacher) => ({
+        services: incomingServices,
+        teachers: incomingTeachers.map((teacher) => ({
           ...teacher,
           serviceIds: teacher.serviceIds || [],
           schedule: teacher.schedule || createDefaultSchedule()
         }))
       }));
+
+      setOpenServiceId(incomingServices[0]?.id || null);
+      setOpenTeacherId(incomingTeachers[0]?.id || null);
     }
   }, [activeBusiness]);
 
@@ -149,8 +162,19 @@ const BusinessSettingsPage = () => {
         schedule: normalizeTeacherSchedule(teacher.schedule, formData.schedule)
       }));
 
+      const sanitizedServices = (formData.services || []).map((service) => ({
+        ...service,
+        name: service.name?.trim() || 'Servicio',
+        duration: Number(service.duration || 30),
+        price: service.price === '' || service.price === null || service.price === undefined
+          ? null
+          : Number(service.price),
+        description: service.description || ''
+      }));
+
       const payload = {
         ...formData,
+        services: sanitizedServices,
         teachers: sanitizedTeachers
       };
 
@@ -204,6 +228,7 @@ const BusinessSettingsPage = () => {
       ...prev,
       teachers: [...(prev.teachers || []), newTeacher]
     }));
+    setOpenTeacherId(newTeacher.id);
   };
 
   const removeTeacher = (teacherId) => {
@@ -211,6 +236,7 @@ const BusinessSettingsPage = () => {
       ...prev,
       teachers: (prev.teachers || []).filter((teacher) => teacher.id !== teacherId)
     }));
+    setOpenTeacherId((prev) => (prev === teacherId ? null : prev));
   };
 
   const updateTeacher = (teacherId, patch) => {
@@ -264,17 +290,49 @@ const BusinessSettingsPage = () => {
     });
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type?.startsWith('image/')) {
+      setError('Solo se permiten archivos de imagen para el avatar.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen no puede superar los 5MB.');
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      setError(null);
+
+      const businessId = user?.businessId;
+      if (!businessId) throw new Error('No se encontro businessId para subir avatar.');
+
+      const avatarUrl = await dbService.uploadBusinessAvatar(businessId, file);
+      setFormData((prev) => ({ ...prev, avatarUrl }));
+    } catch (err) {
+      console.error('Error subiendo avatar:', err);
+      setError('No se pudo subir la imagen. Intenta nuevamente.');
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
+
   return (
-    <div className="w-full max-w-none space-y-6 animate-in fade-in duration-500">
+    <div className="w-full max-w-none space-y-5 md:space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Configuracion del Negocio</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Configuracion del Negocio</h1>
           <p className="text-slate-500">Gestiona tu perfil publico y horarios de atencion.</p>
         </div>
         <button
           onClick={handleSave}
           disabled={loading}
-          className="btn-primary py-3 px-8 flex items-center gap-2 shadow-lg shadow-primary-200 disabled:bg-slate-400"
+          className="w-full md:w-auto btn-primary py-3 px-6 md:px-8 flex items-center justify-center gap-2 shadow-lg shadow-primary-200 disabled:bg-slate-400"
         >
           {loading ? (
             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -299,15 +357,39 @@ const BusinessSettingsPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6">
         <div className="xl:col-span-8 space-y-6">
-          <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <section className="bg-white p-4 md:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 md:space-y-6">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Info className="text-primary-500" size={20} />
               Perfil Publico
             </h3>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Avatar del Negocio</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full border-2 border-slate-200 bg-slate-100 overflow-hidden flex items-center justify-center">
+                    {formData.avatarUrl ? (
+                      <img src={formData.avatarUrl} alt="Avatar del negocio" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-primary-700 font-bold text-lg">{formData.name?.[0] || 'T'}</span>
+                    )}
+                  </div>
+                  <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors">
+                    {uploadingAvatar ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
+                    {uploadingAvatar ? 'Subiendo...' : 'Subir imagen'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">Formatos recomendados: JPG, PNG o WEBP (max 5MB).</p>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre del Negocio</label>
                 <input
@@ -363,7 +445,7 @@ const BusinessSettingsPage = () => {
             </div>
           </section>
 
-          <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <section className="bg-white p-4 md:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 md:space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Users className="text-primary-500" size={20} />
@@ -375,12 +457,14 @@ const BusinessSettingsPage = () => {
                     id: `srv_${Date.now()}`,
                     name: 'Nuevo Servicio',
                     duration: 30,
+                    price: '',
                     description: ''
                   };
                   setFormData((prev) => ({
                     ...prev,
                     services: [...(prev.services || []), newService]
                   }));
+                  setOpenServiceId(newService.id);
                 }}
                 className="text-primary-600 text-sm font-bold hover:bg-primary-50 py-2 px-4 rounded-xl transition-all"
               >
@@ -390,69 +474,115 @@ const BusinessSettingsPage = () => {
 
             <div className="space-y-4">
               {(formData.services || []).map((service, index) => (
-                <div key={service.id} className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 group relative">
-                  <button
-                    onClick={() => {
-                      const nextServices = (formData.services || []).filter((s) => s.id !== service.id);
-                      const nextTeachers = (formData.teachers || []).map((teacher) => ({
-                        ...teacher,
-                        serviceIds: (teacher.serviceIds || []).filter((id) => id !== service.id)
-                      }));
-                      setFormData((prev) => ({ ...prev, services: nextServices, teachers: nextTeachers }));
-                    }}
-                    className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"
-                  >
-                    <AlertCircle size={18} />
-                  </button>
+                <div key={service.id} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between p-4 gap-3">
+                    <button
+                      onClick={() => setOpenServiceId((prev) => (prev === service.id ? null : service.id))}
+                      className="flex-1 text-left"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-900 leading-tight">{service.name || 'Servicio sin nombre'}</p>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            {service.duration || 30} min
+                            {service.price ? ` - $${service.price}` : ''}
+                            {service.description ? ` - ${service.description}` : ''}
+                          </p>
+                        </div>
+                        <ChevronDown
+                          size={18}
+                          className={`text-slate-400 transition-transform ${openServiceId === service.id ? 'rotate-180' : ''}`}
+                        />
+                      </div>
+                    </button>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre del Servicio</label>
+                    <button
+                      onClick={() => {
+                        const nextServices = (formData.services || []).filter((s) => s.id !== service.id);
+                        const nextTeachers = (formData.teachers || []).map((teacher) => ({
+                          ...teacher,
+                          serviceIds: (teacher.serviceIds || []).filter((id) => id !== service.id)
+                        }));
+                        setFormData((prev) => ({ ...prev, services: nextServices, teachers: nextTeachers }));
+                        if (openServiceId === service.id) {
+                          setOpenServiceId(nextServices[0]?.id || null);
+                        }
+                      }}
+                      className="text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                      title="Eliminar servicio"
+                    >
+                      <AlertCircle size={18} />
+                    </button>
+                  </div>
+
+                  {openServiceId === service.id && (
+                    <div className="px-4 pb-4 border-t border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre del Servicio</label>
+                          <input
+                            type="text"
+                            value={service.name}
+                            onChange={(e) => {
+                              const updatedServices = [...(formData.services || [])];
+                              updatedServices[index] = { ...service, name: e.target.value };
+                              setFormData((prev) => ({ ...prev, services: updatedServices }));
+                            }}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Duracion (minutos)</label>
+                          <select
+                            value={service.duration}
+                            onChange={(e) => {
+                              const updatedServices = [...(formData.services || [])];
+                              updatedServices[index] = { ...service, duration: parseInt(e.target.value, 10) };
+                              setFormData((prev) => ({ ...prev, services: updatedServices }));
+                            }}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                          >
+                            {[15, 20, 30, 45, 60, 90, 120].map((d) => (
+                              <option key={d} value={d}>{d} minutos</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Precio</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={service.price ?? ''}
+                            onChange={(e) => {
+                              const updatedServices = [...(formData.services || [])];
+                              updatedServices[index] = { ...service, price: e.target.value };
+                              setFormData((prev) => ({ ...prev, services: updatedServices }));
+                            }}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
                       <input
                         type="text"
-                        value={service.name}
+                        placeholder="Breve descripcion..."
+                        value={service.description}
                         onChange={(e) => {
                           const updatedServices = [...(formData.services || [])];
-                          updatedServices[index] = { ...service, name: e.target.value };
+                          updatedServices[index] = { ...service, description: e.target.value };
                           setFormData((prev) => ({ ...prev, services: updatedServices }));
                         }}
-                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                        className="w-full mt-4 px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Duracion (minutos)</label>
-                      <select
-                        value={service.duration}
-                        onChange={(e) => {
-                          const updatedServices = [...(formData.services || [])];
-                          updatedServices[index] = { ...service, duration: parseInt(e.target.value, 10) };
-                          setFormData((prev) => ({ ...prev, services: updatedServices }));
-                        }}
-                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
-                      >
-                        {[15, 20, 30, 45, 60, 90, 120].map((d) => (
-                          <option key={d} value={d}>{d} minutos</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Breve descripcion..."
-                    value={service.description}
-                    onChange={(e) => {
-                      const updatedServices = [...(formData.services || [])];
-                      updatedServices[index] = { ...service, description: e.target.value };
-                      setFormData((prev) => ({ ...prev, services: updatedServices }));
-                    }}
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm"
-                  />
+                  )}
                 </div>
               ))}
             </div>
           </section>
 
-          <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <section className="bg-white p-4 md:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 md:space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Users className="text-primary-500" size={20} />
@@ -473,100 +603,131 @@ const BusinessSettingsPage = () => {
                 </p>
               ) : (
                 (formData.teachers || []).map((teacher) => (
-                  <div key={teacher.id} className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <input
-                        type="text"
-                        value={teacher.name || ''}
-                        onChange={(e) => updateTeacher(teacher.id, { name: e.target.value })}
-                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
-                        placeholder="Nombre del profesor"
-                      />
+                  <div key={teacher.id} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between p-4 gap-3">
                       <button
-                        onClick={() => removeTeacher(teacher.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors"
+                        onClick={() => setOpenTeacherId((prev) => (prev === teacher.id ? null : teacher.id))}
+                        className="flex-1 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-900 leading-tight">{teacher.name || 'Profesor sin nombre'}</p>
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              {(teacher.serviceIds || []).length} servicios asignados
+                            </p>
+                          </div>
+                          <ChevronDown
+                            size={18}
+                            className={`text-slate-400 transition-transform ${openTeacherId === teacher.id ? 'rotate-180' : ''}`}
+                          />
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          removeTeacher(teacher.id);
+                          if (openTeacherId === teacher.id) {
+                            const nextTeacher = (formData.teachers || []).find((t) => t.id !== teacher.id);
+                            setOpenTeacherId(nextTeacher?.id || null);
+                          }
+                        }}
+                        className="text-slate-300 hover:text-red-500 transition-colors shrink-0"
                         title="Eliminar profesor"
                       >
                         <AlertCircle size={18} />
                       </button>
                     </div>
 
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Servicios asignados</p>
-                      <div className="flex flex-wrap gap-2">
-                        {(formData.services || []).map((service) => {
-                          const selected = (teacher.serviceIds || []).includes(service.id);
-                          return (
-                            <button
-                              key={service.id}
-                              onClick={() => toggleTeacherService(teacher.id, service.id)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                                selected
-                                  ? 'bg-primary-600 border-primary-600 text-white'
-                                  : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300'
-                              }`}
-                            >
-                              {service.name}
-                            </button>
-                          );
-                        })}
-                        {(formData.services || []).length === 0 && (
-                          <span className="text-xs text-slate-400">Primero agrega al menos un servicio.</span>
-                        )}
-                      </div>
-                    </div>
+                    {openTeacherId === teacher.id && (
+                      <div className="px-4 pb-4 border-t border-slate-200 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="pt-4">
+                          <input
+                            type="text"
+                            value={teacher.name || ''}
+                            onChange={(e) => updateTeacher(teacher.id, { name: e.target.value })}
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                            placeholder="Nombre del profesor"
+                          />
+                        </div>
 
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Disponibilidad del profesor</p>
-                      <p className="text-[11px] text-slate-500">Se guarda respetando el horario global del negocio.</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {DAYS_OF_WEEK.map((day) => {
-                          const teacherDay = teacher.schedule?.[day.id] || { active: false, start: '09:00', end: '18:00' };
-                          const businessDay = formData.schedule?.[day.id];
-                          const isBusinessActive = !!businessDay?.active;
-                          return (
-                            <div key={`${teacher.id}_${day.id}`} className={`p-3 rounded-xl border ${isBusinessActive ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-bold text-slate-700">{day.name}</span>
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Servicios asignados</p>
+                          <div className="flex flex-wrap gap-2">
+                            {(formData.services || []).map((service) => {
+                              const selected = (teacher.serviceIds || []).includes(service.id);
+                              return (
                                 <button
-                                  onClick={() => toggleTeacherDay(teacher.id, day.id)}
-                                  disabled={!isBusinessActive}
-                                  className={`w-10 h-5 rounded-full transition-colors relative flex items-center px-1 disabled:opacity-50 ${
-                                    teacherDay.active && isBusinessActive ? 'bg-primary-600' : 'bg-slate-300'
+                                  key={service.id}
+                                  onClick={() => toggleTeacherService(teacher.id, service.id)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                    selected
+                                      ? 'bg-primary-600 border-primary-600 text-white'
+                                      : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300'
                                   }`}
                                 >
-                                  <div className={`w-3 h-3 bg-white rounded-full transition-transform ${teacherDay.active && isBusinessActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                                  {service.name}
                                 </button>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="time"
-                                  value={teacherDay.start}
-                                  disabled={!teacherDay.active || !isBusinessActive}
-                                  onChange={(e) => updateTeacherDayTime(teacher.id, day.id, 'start', e.target.value)}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold text-slate-700 disabled:opacity-50"
-                                />
-                                <span className="text-slate-400 text-xs">-</span>
-                                <input
-                                  type="time"
-                                  value={teacherDay.end}
-                                  disabled={!teacherDay.active || !isBusinessActive}
-                                  onChange={(e) => updateTeacherDayTime(teacher.id, day.id, 'end', e.target.value)}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold text-slate-700 disabled:opacity-50"
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                            {(formData.services || []).length === 0 && (
+                              <span className="text-xs text-slate-400">Primero agrega al menos un servicio.</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Disponibilidad del profesor</p>
+                          <p className="text-[11px] text-slate-500">Se guarda respetando el horario global del negocio.</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {DAYS_OF_WEEK.map((day) => {
+                              const teacherDay = teacher.schedule?.[day.id] || { active: false, start: '09:00', end: '18:00' };
+                              const businessDay = formData.schedule?.[day.id];
+                              const isBusinessActive = !!businessDay?.active;
+                              return (
+                                <div key={`${teacher.id}_${day.id}`} className={`p-3 rounded-xl border ${isBusinessActive ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-bold text-slate-700">{day.name}</span>
+                                    <button
+                                      onClick={() => toggleTeacherDay(teacher.id, day.id)}
+                                      disabled={!isBusinessActive}
+                                      className={`w-10 h-5 rounded-full transition-colors relative flex items-center px-1 disabled:opacity-50 ${
+                                        teacherDay.active && isBusinessActive ? 'bg-primary-600' : 'bg-slate-300'
+                                      }`}
+                                    >
+                                      <div className={`w-3 h-3 bg-white rounded-full transition-transform ${teacherDay.active && isBusinessActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="time"
+                                      value={teacherDay.start}
+                                      disabled={!teacherDay.active || !isBusinessActive}
+                                      onChange={(e) => updateTeacherDayTime(teacher.id, day.id, 'start', e.target.value)}
+                                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold text-slate-700 disabled:opacity-50"
+                                    />
+                                    <span className="text-slate-400 text-xs">-</span>
+                                    <input
+                                      type="time"
+                                      value={teacherDay.end}
+                                      disabled={!teacherDay.active || !isBusinessActive}
+                                      onChange={(e) => updateTeacherDayTime(teacher.id, day.id, 'end', e.target.value)}
+                                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-bold text-slate-700 disabled:opacity-50"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))
               )}
             </div>
           </section>
 
-          <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <section className="bg-white p-4 md:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 md:space-y-6">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Clock className="text-primary-500" size={20} />
               Configuracion Global
@@ -596,7 +757,7 @@ const BusinessSettingsPage = () => {
         </div>
 
         <div className="xl:col-span-4 space-y-6">
-          <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm xl:sticky xl:top-24">
+          <section className="bg-white p-4 md:p-6 rounded-3xl border border-slate-200 shadow-sm xl:sticky xl:top-24">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-5">
               <Calendar className="text-primary-500" size={20} />
               Horarios
@@ -648,3 +809,4 @@ const BusinessSettingsPage = () => {
 };
 
 export default BusinessSettingsPage;
+

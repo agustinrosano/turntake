@@ -1,7 +1,54 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ShieldCheck, Zap, Smartphone as MobileScreen, MessageSquare, BarChart3 } from 'lucide-react';
+import { Calendar, ShieldCheck, Zap, Smartphone as MobileScreen, MessageSquare, BarChart3, Star, Send, Loader2 } from 'lucide-react';
+import { dbService } from '../../services/db.service';
+import { useNotify } from '../../components/ui/NotificationProvider';
 
 const HomePage = () => {
+  const notify = useNotify();
+  const [submittingDemo, setSubmittingDemo] = useState(false);
+  const [demoForm, setDemoForm] = useState({
+    fullName: '',
+    businessName: '',
+    email: '',
+    phone: '',
+    message: ''
+  });
+
+  const handleDemoSubmit = async (e) => {
+    e.preventDefault();
+    if (!demoForm.fullName || !demoForm.businessName || !demoForm.email) {
+      notify.error('Completa nombre, negocio y email para continuar.', { title: 'Formulario incompleto' });
+      return;
+    }
+
+    setSubmittingDemo(true);
+    try {
+      await dbService.createMailingLead({
+        fullName: demoForm.fullName.trim(),
+        businessName: demoForm.businessName.trim(),
+        email: demoForm.email.trim().toLowerCase(),
+        phone: demoForm.phone.trim(),
+        message: demoForm.message.trim(),
+        source: 'landing_demo_form',
+        status: 'new'
+      });
+
+      setDemoForm({
+        fullName: '',
+        businessName: '',
+        email: '',
+        phone: '',
+        message: ''
+      });
+      notify.success('Recibimos tu solicitud. Te contactaremos pronto para la demo.', { title: 'Demo solicitada' });
+    } catch (error) {
+      notify.error('No pudimos guardar tu solicitud. Intenta nuevamente.', { title: 'Error' });
+    } finally {
+      setSubmittingDemo(false);
+    }
+  };
+
   return (
     <div className="flex flex-col">
       {/* Hero */}
@@ -62,6 +109,112 @@ const HomePage = () => {
                    <p className="text-slate-500 leading-relaxed text-sm">{feat.desc}</p>
                 </div>
              ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-slate-900 mb-3">Lo que dicen nuestros usuarios</h2>
+            <p className="text-slate-500">Opiniones reales de negocios que ya digitalizaron su agenda.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                name: 'Sofia Martinez',
+                role: 'Estudio de Pilates',
+                text: 'Pasamos de agendar por WhatsApp a tener todo ordenado. Nos ahorro horas por semana.'
+              },
+              {
+                name: 'Diego Rivas',
+                role: 'Barberia Premium',
+                text: 'La tasa de ausencias bajo muchisimo con los recordatorios automaticos. Excelente.'
+              },
+              {
+                name: 'Camila Torres',
+                role: 'Centro de Estetica',
+                text: 'La pagina publica se ve profesional y los clientes reservan solos. Super recomendable.'
+              }
+            ].map((review, i) => (
+              <article key={i} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <div className="flex items-center gap-1 text-amber-500 mb-4">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <Star key={idx} size={16} fill="currentColor" />
+                  ))}
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed mb-5">"{review.text}"</p>
+                <div>
+                  <p className="font-bold text-slate-900">{review.name}</p>
+                  <p className="text-xs text-slate-500">{review.role}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Demo Form */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-slate-900 rounded-3xl p-8 sm:p-10 text-white shadow-2xl">
+            <div className="mb-8 text-center">
+              <h2 className="text-3xl font-bold mb-3">Agenda una demo personalizada</h2>
+              <p className="text-slate-300 text-sm sm:text-base">
+                Cuentanos sobre tu negocio y te mostramos como implementar Taketurn en minutos.
+              </p>
+            </div>
+
+            <form onSubmit={handleDemoSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Nombre y apellido"
+                value={demoForm.fullName}
+                onChange={(e) => setDemoForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-primary-400"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Nombre del negocio"
+                value={demoForm.businessName}
+                onChange={(e) => setDemoForm((prev) => ({ ...prev, businessName: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-primary-400"
+                required
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={demoForm.email}
+                onChange={(e) => setDemoForm((prev) => ({ ...prev, email: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-primary-400"
+                required
+              />
+              <input
+                type="tel"
+                placeholder="WhatsApp"
+                value={demoForm.phone}
+                onChange={(e) => setDemoForm((prev) => ({ ...prev, phone: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-slate-300 outline-none focus:ring-2 focus:ring-primary-400"
+              />
+              <textarea
+                placeholder="Contanos que necesitas optimizar"
+                rows={4}
+                value={demoForm.message}
+                onChange={(e) => setDemoForm((prev) => ({ ...prev, message: e.target.value }))}
+                className="sm:col-span-2 w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-slate-300 outline-none resize-none focus:ring-2 focus:ring-primary-400"
+              />
+              <button
+                type="submit"
+                disabled={submittingDemo}
+                className="sm:col-span-2 bg-primary-500 hover:bg-primary-400 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {submittingDemo ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                {submittingDemo ? 'Enviando...' : 'Solicitar demo'}
+              </button>
+            </form>
           </div>
         </div>
       </section>

@@ -5,9 +5,11 @@ import {
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
 import { cn } from '../../utils/cn';
+import { useNotify } from '../../components/ui/NotificationProvider';
 
 const CustomersPage = () => {
   const user = useSelector(state => state.auth.user);
+  const notify = useNotify();
   
   // List States
   const [customers, setCustomers] = useState([]);
@@ -91,9 +93,9 @@ const CustomersPage = () => {
     try {
       await dbService.updateCustomer(user.businessId, selectedCustomer.id, { notes: customerNotes });
       setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? { ...c, notes: customerNotes } : c));
-      alert('¡Notas guardadas!');
+      notify.success('Notas guardadas correctamente.', { title: 'Listo' });
     } catch (error) {
-      alert('Error al guardar.');
+      notify.error('Error al guardar las notas.', { title: 'Error' });
     } finally {
       setIsSavingNotes(false);
     }
@@ -110,9 +112,9 @@ const CustomersPage = () => {
       setCustomers(prev => [added, ...prev]);
       setShowCreateModal(false);
       setNewCustomer({ name: '', phone: '', email: '', city: '' });
-      alert('¡Cliente creado!');
+      notify.success('Cliente creado con exito.', { title: 'Listo' });
     } catch (error) {
-      alert('Error al crear.');
+      notify.error('Error al crear el cliente.', { title: 'Error' });
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -164,9 +166,9 @@ const CustomersPage = () => {
       }
       setAppointments(prev => [...prev, ...newAppts]);
       setShowModal(false);
-      alert(`¡${selectedDates.length} turnos agendados!`);
+      notify.success(`${selectedDates.length} turnos agendados.`, { title: 'Agenda actualizada' });
     } catch (err) {
-      alert("Error al agendar.");
+      notify.error('Error al agendar turnos.', { title: 'Error' });
     } finally {
       setIsCreating(false);
     }
@@ -193,31 +195,31 @@ const CustomersPage = () => {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-           <h1 className="text-3xl font-bold text-slate-900 tracking-tight leading-none mb-1">Gestión de Clientes</h1>
+           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-none mb-1">Gestión de Clientes</h1>
            <p className="text-slate-500 font-medium">Administra tu base de datos y agenda turnos para ellos.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text" placeholder="Buscar..." value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-sm w-full md:w-64 font-medium"
+                className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-sm w-full sm:w-64 font-medium"
               />
            </div>
            <button 
              onClick={() => setShowCreateModal(true)}
-             className="bg-slate-900 text-white font-bold py-2.5 px-6 rounded-xl text-sm flex items-center gap-2"
+             className="bg-slate-900 text-white font-bold py-2.5 px-5 rounded-xl text-sm flex items-center justify-center gap-2"
            >
               <Users size={18} /> <span className="hidden sm:inline">Nuevo Cliente</span>
            </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-2">
             <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center"><Users size={20} /></div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pt-2">Total Clientes</p>
@@ -230,7 +232,41 @@ const CustomersPage = () => {
          </div>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          Array(4).fill(0).map((_, i) => <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />)
+        ) : filteredCustomers.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-slate-500 font-bold">
+            No hay clientes registrados aun.
+          </div>
+        ) : (
+          filteredCustomers.map((customer) => (
+            <div key={customer.id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-slate-900">{customer.name || 'Sin nombre'}</p>
+                  <p className="text-xs text-slate-500">{customer.city || 'S/D'}</p>
+                </div>
+                <button onClick={() => openModal(customer)} className="text-xs font-bold text-primary-600">Ver ficha</button>
+              </div>
+              <div className="text-xs text-slate-600 space-y-1">
+                <p className="flex items-center gap-1.5"><Phone size={12} /> {customer.phone}</p>
+                <p className="flex items-center gap-1.5"><Mail size={12} /> {customer.email || 'Sin email'}</p>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>Ultima: {customer.lastBooking}</span>
+                <span className="font-bold">{customer.totalAppointments} turnos</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => openModal(customer, 'booking')} className="h-10 rounded-xl bg-primary-600 text-white text-xs font-bold">Nuevo turno</button>
+                <button onClick={() => openModal(customer)} className="h-10 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold">Abrir ficha</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -242,13 +278,13 @@ const CustomersPage = () => {
                 <th className="px-8 py-5 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-50 anim-table-in">
               {loading ? Array(5).fill(0).map((_, i) => (
-                <tr key={i}><td colSpan="5" className="px-8 py-5 h-20 bg-slate-50/20 animate-pulse"></td></tr>
+                <tr key={i} className="anim-row-in" style={{ animationDelay: `${i * 50}ms` }}><td colSpan="5" className="px-8 py-5 h-20 bg-slate-50/20 animate-pulse"></td></tr>
               )) : filteredCustomers.length === 0 ? (
                 <tr><td colSpan="5" className="px-8 py-32 text-center text-slate-500 font-black italic">No hay clientes registrados aún.</td></tr>
-              ) : filteredCustomers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-slate-50/50 transition-all group">
+              ) : filteredCustomers.map((customer, index) => (
+                <tr key={customer.id} className="hover:bg-slate-50/50 transition-all group anim-row-in" style={{ animationDelay: `${Math.min(520, (index + 1) * 40)}ms` }}>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg">{customer.name?.[0] || 'C'}</div>
@@ -281,8 +317,8 @@ const CustomersPage = () => {
 
       {showModal && selectedCustomer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-500">
+           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm anim-overlay-in" onClick={() => setShowModal(false)} />
+           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-500 anim-modal-in">
               <div className="p-8 pb-4 flex items-center justify-between">
                  <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-2xl">{selectedCustomer.name?.[0] || 'C'}</div>
@@ -385,8 +421,8 @@ const CustomersPage = () => {
 
       {showCreateModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
-           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-500">
+           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm anim-overlay-in" onClick={() => setShowCreateModal(false)} />
+           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-500 anim-modal-in">
               <div className="p-8 pb-4 flex items-center justify-between">
                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center"><Users size={24} /></div>
@@ -413,3 +449,5 @@ const CustomersPage = () => {
 };
 
 export default CustomersPage;
+
+

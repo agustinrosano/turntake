@@ -18,6 +18,7 @@ import {
 import { cn } from '../../utils/cn';
 import { dbService } from '../../services/db.service';
 import { setActiveBusiness, setLoading, setError } from '../../features/business/businessSlice';
+import { useNotify } from '../../components/ui/NotificationProvider';
 
 const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
@@ -39,6 +40,7 @@ const BookingPage = () => {
   const { businessSlug } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const notify = useNotify();
   const { activeBusiness, loading, error } = useSelector((state) => state.business);
 
   const [step, setStep] = useState(0); // 0: Service, 1: Teacher/Date/Time, 2: Details, 3: Success
@@ -224,7 +226,7 @@ const BookingPage = () => {
       });
       setStep(3);
     } catch (err) {
-      alert('Error al confirmar la reserva. Intentalo de nuevo.');
+      notify.error('Error al confirmar la reserva. Intentalo de nuevo.', { title: 'Error' });
     } finally {
       setBookingLoading(false);
     }

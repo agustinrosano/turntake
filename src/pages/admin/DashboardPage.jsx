@@ -107,19 +107,19 @@ const DashboardPage = () => {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
            <div className="flex items-center gap-2 mb-1">
               <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-bold uppercase rounded-md tracking-wider">Dashboard Real-time</span>
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
            </div>
-           <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-1">¡Hola, {user?.name?.split(' ')[0] || 'Admin'}! 👋</h1>
+           <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-none mb-1">¡Hola, {user?.name?.split(' ')[0] || 'Admin'}! 👋</h1>
            <p className="text-slate-500 font-medium">Tienes <span className="text-primary-600 font-bold">{appointmentsToday.length} turnos</span> programados para hoy.</p>
         </div>
         <button 
           onClick={() => navigate('/admin/appointments')}
-          className="bg-slate-900 text-white py-3.5 px-8 rounded-2xl flex items-center gap-3 self-start hover:bg-slate-800 hover:-translate-y-1 active:translate-y-0 transition-all shadow-xl shadow-slate-200 group"
+          className="w-full md:w-auto bg-slate-900 text-white py-3.5 px-6 md:px-8 rounded-2xl flex items-center justify-center gap-3 self-start hover:bg-slate-800 hover:-translate-y-1 active:translate-y-0 transition-all shadow-xl shadow-slate-200 group"
         >
            <Calendar size={18} className="group-hover:rotate-12 transition-transform" />
            <span className="font-bold text-sm">Ver agenda completa</span>
@@ -128,16 +128,16 @@ const DashboardPage = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {stats.map((stat, i) => (
           <button
             key={i}
             onClick={() => stat.to && navigate(stat.to)}
-            className={`bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-primary-100 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-500 text-left ${stat.to ? 'cursor-pointer' : 'cursor-default'}`}
+            className={`bg-white p-5 md:p-8 rounded-3xl md:rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-primary-100 hover:shadow-xl hover:shadow-primary-500/5 transition-all duration-500 text-left ${stat.to ? 'cursor-pointer' : 'cursor-default'}`}
           >
              <div className="space-y-2">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{stat.label}</p>
-                <p className="text-4xl font-black text-slate-900 leading-none">{stat.value}</p>
+                <p className="text-3xl md:text-4xl font-black text-slate-900 leading-none">{stat.value}</p>
                 <div className="flex items-center gap-2">
                   <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg font-black uppercase tracking-tighter transition-colors group-hover:bg-primary-50 group-hover:text-primary-600">{stat.trend}</span>
                   <div className="flex -space-x-1 grayscale group-hover:grayscale-0 transition-all">
@@ -151,17 +151,17 @@ const DashboardPage = () => {
                   </div>
                 )}
              </div>
-             <div className={`w-16 h-16 ${stat.color} text-white rounded-[1.5rem] flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
+             <div className={`w-14 h-14 md:w-16 md:h-16 ${stat.color} text-white rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
                 {stat.icon}
              </div>
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-8">
         {/* Recent Appointments */}
-        <div className="lg:col-span-7 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-           <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+        <div className="lg:col-span-7 bg-white rounded-3xl md:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+           <div className="p-5 md:p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-primary-500">
                   <Clock size={20} />
@@ -186,7 +186,7 @@ const DashboardPage = () => {
                    <p className="text-slate-400 font-bold italic tracking-tight">Tu agenda está lista esperando reservas.</p>
                 </div>
               ) : recentAppointments.map((appt) => (
-                <div key={appt.id} className="p-6 md:p-8 flex items-center justify-between hover:bg-slate-50/50 transition-all group">
+                <div key={appt.id} className="p-4 md:p-8 flex items-center justify-between hover:bg-slate-50/50 transition-all group gap-3">
                   <div className="flex items-center gap-5">
                      <div className="relative">
                         <div className="w-14 h-14 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center font-black text-lg transition-transform group-hover:scale-105">
@@ -197,7 +197,7 @@ const DashboardPage = () => {
                         </div>
                      </div>
                      <div>
-                        <p className="font-black text-slate-900 text-lg leading-tight mb-0.5">{appt.customerName}</p>
+                        <p className="font-black text-slate-900 text-base md:text-lg leading-tight mb-0.5">{appt.customerName}</p>
                         <div className="flex items-center gap-2">
                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{appt.serviceName || appt.service}</span>
                            <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
@@ -208,7 +208,7 @@ const DashboardPage = () => {
                   <div className="text-right flex flex-col items-end">
                      <div className="flex items-center gap-1.5 mb-1.5">
                         <Clock size={14} className="text-primary-500" />
-                        <p className="font-black text-slate-900 text-xl tracking-tighter leading-none">{appt.time}</p>
+                        <p className="font-black text-slate-900 text-lg md:text-xl tracking-tighter leading-none">{appt.time}</p>
                      </div>
                      <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${
                         appt.status === 'confirmed' 
@@ -222,7 +222,7 @@ const DashboardPage = () => {
               ))}
            </div>
            
-           <div className="p-6 bg-slate-50/30 border-t border-slate-50">
+           <div className="p-4 md:p-6 bg-slate-50/30 border-t border-slate-50">
               <button 
                 onClick={() => navigate('/admin/appointments')}
                 className="w-full py-3 bg-white border border-slate-200 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-primary-600 hover:border-primary-200 transition-all shadow-sm"
@@ -234,13 +234,13 @@ const DashboardPage = () => {
 
         {/* Action Sidebar */}
         <div className="lg:col-span-5 space-y-6">
-           <div className="bg-indigo-600 rounded-[2.5rem] p-10 text-white relative overflow-hidden group shadow-2xl shadow-indigo-200">
+           <div className="bg-indigo-600 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 text-white relative overflow-hidden group shadow-2xl shadow-indigo-200">
               <div className="relative z-10 h-full flex flex-col justify-between">
                  <div>
                     <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
                        <ExternalLink size={24} />
                     </div>
-                    <h3 className="text-2xl font-black mb-3 leading-tight tracking-tight">Tu Portal Público<br/>está Online</h3>
+                    <h3 className="text-xl md:text-2xl font-black mb-3 leading-tight tracking-tight">Tu Portal Público<br/>está Online</h3>
                     <p className="text-indigo-100 text-sm mb-10 max-w-[200px] font-medium leading-relaxed">Comparte tu link único y permite que tus clientes reserven 24/7.</p>
                  </div>
                  
@@ -265,7 +265,7 @@ const DashboardPage = () => {
               </div>
            </div>
 
-           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-10 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all duration-500">
+           <div className="bg-white rounded-3xl md:rounded-[2.5rem] border border-slate-100 p-6 md:p-10 shadow-sm relative overflow-hidden group hover:shadow-xl transition-all duration-500">
               <div className="flex items-center gap-6 mb-6">
                  <div className="w-16 h-16 bg-emerald-500 text-white rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-lg shadow-emerald-200 group-hover:rotate-12 transition-transform">
                     <MessageSquare size={32} />
@@ -298,3 +298,4 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
+

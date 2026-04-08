@@ -20,6 +20,7 @@ import {
   List
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
+import { useNotify } from '../../components/ui/NotificationProvider';
 
 // --- Date Utilities ---
 const getStartOfWeek = (date) => {
@@ -64,6 +65,7 @@ const getDaysArray = (start, end) => {
 
 const AppointmentsPage = () => {
   const user = useSelector(state => state.auth.user);
+  const notify = useNotify();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, confirmed, cancelled
@@ -185,6 +187,22 @@ const AppointmentsPage = () => {
     setSelectedDates([]); // Clear selection when changing view
   };
 
+  const handleConfirmAppointment = async (appointmentId) => {
+    if (!user?.businessId || !appointmentId) return;
+
+    try {
+      await dbService.updateAppointmentStatus(user.businessId, appointmentId, 'confirmed');
+      setAppointments((prev) =>
+        prev.map((appt) =>
+          appt.id === appointmentId ? { ...appt, status: 'confirmed' } : appt
+        )
+      );
+    } catch (error) {
+      console.error('Error confirming appointment:', error);
+      notify.error('No se pudo confirmar el turno. Intentalo de nuevo.', { title: 'Error' });
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'confirmed':
@@ -211,16 +229,16 @@ const AppointmentsPage = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-           <h1 className="text-3xl font-bold text-slate-900 tracking-tight leading-none mb-1">Gestión de Turnos</h1>
+           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-none mb-1">Gestión de Turnos</h1>
            <p className="text-slate-500 font-medium">Administra las reservas y el estado de tu agenda.</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-           <div className="relative group min-w-[240px]">
+        <div className="flex flex-col sm:flex-row w-full md:w-auto items-stretch sm:items-center gap-3">
+           <div className="relative group w-full sm:min-w-[240px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors" size={18} />
               <input 
                 type="text" 
@@ -231,7 +249,7 @@ const AppointmentsPage = () => {
               />
            </div>
            
-           <div className="flex bg-slate-100 p-1 rounded-xl">
+           <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
               {[
                 { id: 'all', label: 'Todos' },
                 { id: 'pending', label: 'Pendientes' },
@@ -240,7 +258,7 @@ const AppointmentsPage = () => {
                 <button
                   key={btn.id}
                   onClick={() => setFilter(btn.id)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     filter === btn.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
@@ -252,9 +270,9 @@ const AppointmentsPage = () => {
       </div>
 
       {/* View Toggle and Navigation */}
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-4 rounded-3xl border border-slate-200 shadow-sm gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between bg-white p-4 rounded-3xl border border-slate-200 shadow-sm gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
             <button
               onClick={() => handleViewChange('week')}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -275,14 +293,14 @@ const AppointmentsPage = () => {
 
           <div className="h-6 w-[1px] bg-slate-200 hidden md:block"></div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button 
               onClick={handlePrev}
               className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
             >
               <ChevronLeft size={20} />
             </button>
-            <span className="text-sm font-black text-slate-700 min-w-[120px] text-center capitalize">
+            <span className="text-sm font-black text-slate-700 min-w-[120px] text-center capitalize flex-1 sm:flex-none">
               {viewType === 'week' 
                 ? `Semana ${currentDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`
                 : currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
@@ -297,7 +315,7 @@ const AppointmentsPage = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {selectedDates.length > 0 && (
             <button 
               onClick={() => setSelectedDates([])}
@@ -313,7 +331,7 @@ const AppointmentsPage = () => {
       </div>
 
       {/* Occupancy Grid (Mini Calendar) */}
-      <div className="grid grid-cols-7 md:grid-cols-7 lg:grid-cols-7 xl:grid-cols-14 gap-2 overflow-x-auto pb-4 scrollbar-hide">
+      <div className="grid grid-cols-7 md:grid-cols-7 lg:grid-cols-7 xl:grid-cols-14 gap-2 overflow-x-auto pb-2 md:pb-4 scrollbar-hide">
         {daysInRange.map((date, idx) => {
           const isoDate = formatDateToISO(date);
           const count = occupancyMap[isoDate] || 0;
@@ -325,7 +343,7 @@ const AppointmentsPage = () => {
             <button 
               key={idx}
               onClick={() => toggleDate(isoDate)}
-              className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all min-w-[70px] relative group overflow-hidden ${
+              className={`flex flex-col items-center justify-center p-2 md:p-3 rounded-2xl border transition-all min-w-[56px] md:min-w-[70px] relative group overflow-hidden ${
                 isSelected ? 'bg-primary-600 border-primary-600 text-white shadow-xl shadow-primary-200' :
                 isToday ? 'bg-primary-50 border-primary-200' : 
                 count > 0 ? 'bg-white border-slate-200 shadow-sm hover:border-primary-300' : 'bg-slate-50/50 border-slate-100 opacity-60'
@@ -361,7 +379,45 @@ const AppointmentsPage = () => {
       </div>
 
       {/* Main Appointments Table */}
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden min-h-[300px]">
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          Array(4).fill(0).map((_, i) => (
+            <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
+          ))
+        ) : filteredAppointments.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center text-slate-500 font-bold">
+            No se encontraron turnos para este periodo.
+          </div>
+        ) : (
+          filteredAppointments.map((appt) => (
+            <div key={appt.id} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-slate-900">{appt.customerName || 'Cliente'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{appt.serviceName || appt.service || 'Servicio'}</p>
+                  <p className="text-[11px] text-slate-400">{appt.teacherName || 'General'}</p>
+                </div>
+                {getStatusBadge(appt.status)}
+              </div>
+              <div className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Clock size={14} className="text-primary-500" />
+                {appt.date} - {appt.time} hs
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => sendWhatsAppReminder(appt)} className="h-10 bg-green-50 text-green-700 rounded-xl text-xs font-bold">WhatsApp</button>
+                <a href={getGoogleCalendarUrl(appt)} target="_blank" rel="noopener noreferrer" className="h-10 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center">Calendar</a>
+                {appt.status === 'pending' ? (
+                  <button onClick={() => handleConfirmAppointment(appt.id)} className="h-10 bg-amber-50 text-amber-700 rounded-xl text-xs font-bold">Confirmar</button>
+                ) : (
+                  <div className="h-10 rounded-xl border border-slate-200 text-[11px] text-slate-400 flex items-center justify-center">Sin acciones</div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden min-h-[300px]">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -405,7 +461,7 @@ const AppointmentsPage = () => {
                 filteredAppointments.map((appt) => (
                   <tr key={appt.id} className="hover:bg-slate-50/50 transition-all group">
                     <td className="px-8 py-5">
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center font-black text-lg transition-transform group-hover:scale-110">
                            {appt.customerName?.[0] || <User size={18} />}
                         </div>
@@ -457,7 +513,11 @@ const AppointmentsPage = () => {
                              <CalendarPlus size={18} />
                           </a>
                           {appt.status === 'pending' && (
-                            <button className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center shadow-sm" title="Confirmar">
+                            <button
+                              onClick={() => handleConfirmAppointment(appt.id)}
+                              className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center shadow-sm"
+                              title="Confirmar"
+                            >
                                <CheckCircle2 size={18} />
                             </button>
                           )}
@@ -478,3 +538,4 @@ const AppointmentsPage = () => {
 };
 
 export default AppointmentsPage;
+

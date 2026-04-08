@@ -5,13 +5,16 @@ import { router } from './routes';
 import './index.css';
 
 import AuthListener from './components/auth/AuthListener';
+import { NotificationProvider } from './components/ui/NotificationProvider';
 
 function App() {
   return (
     <Provider store={store}>
-      <AuthListener>
-        <RouterProvider router={router} />
-      </AuthListener>
+      <NotificationProvider>
+        <AuthListener>
+          <RouterProvider router={router} />
+        </AuthListener>
+      </NotificationProvider>
     </Provider>
   );
 }
