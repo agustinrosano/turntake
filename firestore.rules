@@ -20,27 +20,33 @@ service cloud.firestore {
       allow update, delete: if isOwner(resource.data.businessId);
     }
 
-    // Colección: Negocios (Businesses)
+    // Colección: Negocios (Businesses) y sus subcolecciones
     match /businesses/{businessId} {
       allow read: if true; // Los clientes necesitan leer el perfil público
       allow write: if isOwner(businessId);
+
+      // Subcolección: Turnos (Appointments)
+      match /appointments/{appointmentId} {
+        // Los clientes pueden ver turnos ocupados para filtrar disponibilidad
+        allow read: if true; 
+        
+        // Los clientes pueden crear un turno
+        allow create: if true; 
+        
+        // Solo el dueño puede modificar/cancelar/confirmar turnos
+        allow update, delete: if isOwner(businessId);
+      }
+
+      // Subcolección: Clientes
+      match /customers/{customerId} {
+        allow read, write: if isOwner(businessId);
+      }
     }
 
-    // Colección: Turnos (Appointments)
-    match /appointments/{appointmentId} {
-      // Los clientes pueden ver turnos ocupados para filtrar disponibilidad (o usar una función específica)
-      allow read: if true; 
-      
-      // Los clientes pueden crear un turno (puedes añadir validaciones de campos obligatorios)
-      allow create: if true; 
-      
-      // Solo el dueño puede modificar/cancelar/confirmar turnos
-      allow update, delete: if isOwner(resource.data.businessId);
-    }
-
-    // Colección: Clientes
-    match /customers/{customerId} {
-      allow read, write: if isOwner(resource.data.businessId);
+    // Colección: Errores (Errors) - Escritura pública para logging de fallos, lectura protegida
+    match /errors/{errorId} {
+      allow create: if true;
+      allow read, update, delete: if false;
     }
   }
 }

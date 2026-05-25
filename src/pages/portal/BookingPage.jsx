@@ -226,6 +226,22 @@ const BookingPage = () => {
       });
       setStep(3);
     } catch (err) {
+      console.error('Error in handleBooking:', err);
+      
+      await dbService.logError({
+        zone: 'Portal - BookingPage',
+        fnName: 'handleBooking',
+        error: err,
+        userId: null,
+        userEmail: formData.email,
+        businessId: activeBusiness?.id || null,
+        metadata: {
+          serviceId: selectedService?.id,
+          date: selectedDate,
+          time: selectedTime
+        }
+      });
+
       notify.error('Error al confirmar la reserva. Intentalo de nuevo.', { title: 'Error' });
     } finally {
       setBookingLoading(false);

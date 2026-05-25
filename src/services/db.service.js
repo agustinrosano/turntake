@@ -255,5 +255,27 @@ export const dbService = {
       console.error("Error actualizando cliente:", error);
       throw error;
     }
+  },
+
+  /**
+   * Registra un error en la colección global 'errors' de Firestore para auditoría y depuración.
+   */
+  logError: async ({ zone, fnName, error, userId, userEmail, businessId, metadata }) => {
+    try {
+      const errorsRef = collection(db, "errors");
+      await addDoc(errorsRef, {
+        zone: zone || "Unknown",
+        function: fnName || "Unknown",
+        errorMsg: error?.message || String(error),
+        errorStack: error?.stack || null,
+        userId: userId || null,
+        userEmail: userEmail || null,
+        businessId: businessId || null,
+        metadata: metadata || null,
+        timestamp: new Date().toISOString()
+      });
+    } catch (loggingError) {
+      console.error("Critical: Failed to log error to Firestore:", loggingError);
+    }
   }
 };

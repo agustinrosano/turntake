@@ -17,7 +17,8 @@ import {
   MessageCircle,
   CalendarPlus,
   LayoutGrid,
-  List
+  List,
+  Loader2
 } from 'lucide-react';
 import { dbService } from '../../services/db.service';
 import { useNotify } from '../../components/ui/NotificationProvider';
@@ -77,6 +78,7 @@ const AppointmentsPage = () => {
 
   // Interactivity: Selected specific dates
   const [selectedDates, setSelectedDates] = useState([]); // array of 'YYYY-MM-DD' strings
+  const [confirmingId, setConfirmingId] = useState(null);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -188,8 +190,24 @@ const AppointmentsPage = () => {
   };
 
   const handleConfirmAppointment = async (appointmentId) => {
-    if (!user?.businessId || !appointmentId) return;
+    if (!appointmentId) return;
 
+    if (!user?.businessId) {
+      notify.warning('No se pudo confirmar el turno: la información de tu negocio aún se está cargando. Por favor, intenta de nuevo.', { title: 'Datos no listos' });
+      
+      await dbService.logError({
+        zone: 'Admin - AppointmentsPage',
+        fnName: 'handleConfirmAppointment',
+        error: new Error('Falta businessId en el perfil del usuario al intentar confirmar'),
+        userId: user?.uid,
+        userEmail: user?.email,
+        businessId: null,
+        metadata: { appointmentId }
+      });
+      return;
+    }
+
+    setConfirmingId(appointmentId);
     try {
       await dbService.updateAppointmentStatus(user.businessId, appointmentId, 'confirmed');
       setAppointments((prev) =>
@@ -197,9 +215,23 @@ const AppointmentsPage = () => {
           appt.id === appointmentId ? { ...appt, status: 'confirmed' } : appt
         )
       );
+      notify.success('Turno confirmado con éxito.', { title: 'Turno Confirmado' });
     } catch (error) {
       console.error('Error confirming appointment:', error);
+      
+      await dbService.logError({
+        zone: 'Admin - AppointmentsPage',
+        fnName: 'handleConfirmAppointment',
+        error: error,
+        userId: user?.uid,
+        userEmail: user?.email,
+        businessId: user?.businessId,
+        metadata: { appointmentId }
+      });
+
       notify.error('No se pudo confirmar el turno. Intentalo de nuevo.', { title: 'Error' });
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -407,7 +439,13 @@ const AppointmentsPage = () => {
                 <button onClick={() => sendWhatsAppReminder(appt)} className="h-10 bg-green-50 text-green-700 rounded-xl text-xs font-bold">WhatsApp</button>
                 <a href={getGoogleCalendarUrl(appt)} target="_blank" rel="noopener noreferrer" className="h-10 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center">Calendar</a>
                 {appt.status === 'pending' ? (
-                  <button onClick={() => handleConfirmAppointment(appt.id)} className="h-10 bg-amber-50 text-amber-700 rounded-xl text-xs font-bold">Confirmar</button>
+                  <button 
+                    disabled={confirmingId !== null} 
+                    onClick={() => handleConfirmAppointment(appt.id)} 
+                    className="h-10 bg-amber-50 text-amber-700 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    {confirmingId === appt.id ? '...' : 'Confirmar'}
+                  </button>
                 ) : (
                   <div className="h-10 rounded-xl border border-slate-200 text-[11px] text-slate-400 flex items-center justify-center">Sin acciones</div>
                 )}
@@ -514,11 +552,16 @@ const AppointmentsPage = () => {
                           </a>
                           {appt.status === 'pending' && (
                             <button
+                              disabled={confirmingId !== null}
                               onClick={() => handleConfirmAppointment(appt.id)}
-                              className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center shadow-sm"
-                              title="Confirmar"
+                              className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all flex items-center justify-center shadow-sm disabled:opacity-50 disabled:pointer-events-none"
+                              title={confirmingId === appt.id ? "Confirmando..." : "Confirmar"}
                             >
-                               <CheckCircle2 size={18} />
+                               {confirmingId === appt.id ? (
+                                 <Loader2 size={18} className="animate-spin text-amber-600" />
+                               ) : (
+                                 <CheckCircle2 size={18} />
+                               )}
                             </button>
                           )}
                           <button className="w-10 h-10 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center shadow-sm">
